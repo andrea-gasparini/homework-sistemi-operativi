@@ -1,16 +1,15 @@
 #!/bin/bash
 
 # TO-DO
-### gli argomenti devono essere limitati superiormente
-### gli argomenti passati a -b non devono essere minori di 2
-### il controllo sulle opzioni multiple (-e -b) va effettuato su qualunque lettera
+#done# gli argomenti devono essere limitati superiormente
+#done# gli argomenti passati a -b non devono essere minori di 2
+#done# il controllo sulle opzioni multiple (-e -b) va effettuato su qualunque lettera
 
 help="Uso: 1.sh [opzioni] directory"
 boolean=false
 				
 # FUNZIONE controlla che non vengano passate due opzioni contemporaneamente
 checkOptions() { if [ "$boolean" = true ] || [[ "$OPTARG" == "-"[a-z] ]] || [[ "$OPTARG" == [a-z] ]]; then
-					# se vengono passate due opzioni
 					echo "$help" 1>&2
 					exit 10
 				fi }
