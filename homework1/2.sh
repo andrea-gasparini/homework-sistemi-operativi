@@ -54,8 +54,3 @@ do
 		commands[i]="not existing command"									#CONTROLLARE IL GRADER - CONTROLLARE CHE VADA BENE SOLO IL CHECK SUL COMANDO O VADA FATTO SULL'INTERA STRINGA
 	fi																		#CONTROLLARE IL GRADER - I PARAMETRI DOVREBBERO ESSERE SEMPRE VALIDI PERCIO' DOVREBBE ANDAR BENE LASCIARE SOLO ${commands[i]}
 done	
-
-#~ for ((i=0; i<${#commands[@]}; i++));
-#~ do
-
-#~ done					
