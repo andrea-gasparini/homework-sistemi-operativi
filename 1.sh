@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# @author Andrea Gasparini
+
 help="Uso: 1.sh [opzioni] directory"
 boolean=false
 				
