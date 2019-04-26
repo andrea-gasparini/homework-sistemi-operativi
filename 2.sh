@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# @author Andrea Gasparini
+
 help="Usage: 2.sh bytes walltime sampling commands files"
 
 bytes=$1
