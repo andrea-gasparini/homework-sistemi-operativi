@@ -291,10 +291,8 @@ case $cmd in
 			mkdir -p $createDir # crea la directory come in originale
 			mv $el $createDir 	# sposta l'elemento originale nella nuova directory
 			
-		done
-		
+		done		
 		removeDeadSymLinks $dirb
-
 		;;
 	*)	
 		for el in ${toRemove[@]}
@@ -303,5 +301,4 @@ case $cmd in
 		done
 		;;
 esac
-
 removeDeadSymLinks $dir
