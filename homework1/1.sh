@@ -2,7 +2,8 @@
 
 # @author Andrea Gasparini
 
-help="Uso: 1.sh [opzioni] directory"
+scriptname=$0
+help="Uso: $scriptname [opzioni] directory"
 boolean=false
 				
 # FUNZIONE controlla che non vengano passate due opzioni contemporaneamente
@@ -291,8 +292,10 @@ case $cmd in
 			mkdir -p $createDir # crea la directory come in originale
 			mv $el $createDir 	# sposta l'elemento originale nella nuova directory
 			
-		done		
+		done
+		
 		removeDeadSymLinks $dirb
+
 		;;
 	*)	
 		for el in ${toRemove[@]}
@@ -301,4 +304,5 @@ case $cmd in
 		done
 		;;
 esac
+
 removeDeadSymLinks $dir
