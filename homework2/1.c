@@ -6,6 +6,10 @@
 #include <sys/stat.h>	// utilizzo stat()
 #include <sys/vfs.h>	// utilizzo statfs() per x_bytes
 
+/**
+ * @author Andrea Gasparini
+ */
+
 struct options	// rappresenta le opzioni disponibili per il programma
 {
 	_Bool opt_d;
