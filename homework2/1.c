@@ -4,10 +4,7 @@
 #include <dirent.h>		// gestione directory, scandir() e alphasort()
 #include <unistd.h> 	// utilizzo getopt() e access()
 #include <sys/stat.h>	// utilizzo stat()
-
-/**
- *	@author Andrea Gasparini 
- */
+#include <sys/vfs.h>	// utilizzo statfs() per x_bytes
 
 struct options	// rappresenta le opzioni disponibili per il programma
 {
@@ -33,6 +30,8 @@ _Bool isDirectory(char *); // ritorna 1 se path è una directory
 
 _Bool isFile(char *); 	// ritorna 1 se path è un file
 
+void printSysCallErr(char *); // stampa su sterr il perror dell'ultima SysCall & exit(100)
+
 void printHelp(char *);	// printa su stderr la sintassi d'uso corretta del programma
 
 int main(int argc, char *argv[])
@@ -42,8 +41,8 @@ int main(int argc, char *argv[])
 	opts.opt_d = 0;
 	opts.opt_R = 0;
 	opts.opt_l = 0;
-	int blocksize = getenv("BLOCKSIZE") == NULL ? 1024 : atoi(getenv("BLOCKSIZE"));
-	const int x_bytes = 4096;
+	const int blocksize = getenv("BLOCKSIZE") == NULL ? 1024 : atoi(getenv("BLOCKSIZE"));
+	int x_bytes = 4096;	// nel calcolo della riga total viene poi ricalcolato per ogni file 
 	
     while((opt = getopt(argc, argv, ":dRl:")) != -1)	// ritorna -1 se non sono presenti altre opzioni
     {	
@@ -76,10 +75,12 @@ int main(int argc, char *argv[])
     if (n_path_names > 0)
     {
 		char **path_names = malloc(n_path_names * sizeof(char *));
+		if (path_names == NULL) printSysCallErr("malloc");
 
 		for (int i = 0; optind < argc; optind++)
 		{
 			path_names[i] = malloc((strlen(argv[optind])+1) * sizeof(char));
+			if (path_names[i] == NULL) printSysCallErr("malloc");
 			strcpy(path_names[i++], argv[optind]);	// inserisce i restanti argomenti del comando (no opt) in un array
 		}	
 		
@@ -89,6 +90,7 @@ int main(int argc, char *argv[])
 				not_existing_files_cnt++;	// ne tiene il conto per dare exit status e stampa su stderr
 				fprintf(stderr, "%s: cannot access '%s': No such file or directory\n", argv[0], path_names[i]);
 				path_names[i] = realloc(path_names[i], (strlen("PATHCANCELLATO")+1) * sizeof(char));
+				if (path_names[i] == NULL)	printSysCallErr("realloc");
 				strcpy(path_names[i], "PATHCANCELLATO");	
 			}
 			
@@ -104,10 +106,7 @@ int main(int argc, char *argv[])
 					{						// permessi, hard link count, dimensione e nome || permessi e nome
 						struct stat st;				
 						if(lstat(path_names[i], &st) < 0)
-						{
-							perror("System call lstat failed because of");
-							exit(100);
-						}
+							printSysCallErr("lstat");
 						else
 						{   
 							char *perm_string = calcPermString(st);
@@ -118,6 +117,7 @@ int main(int argc, char *argv[])
 					else
 						printf("%s\n", path_names[i]); 
 					path_names[i] = realloc(path_names[i], (strlen("PATHCANCELLATO")+1) * sizeof(char));
+					if (path_names[i] == NULL)	printSysCallErr("realloc");
 					strcpy(path_names[i], "PATHCANCELLATO");
 				}
 			if (file_cnt > 0 && file_cnt < n_path_names) // se sono stati stampati nomi di file e ci sono altre dir da analizzare, separa con un \n
@@ -147,7 +147,8 @@ int main(int argc, char *argv[])
 	}
 	else
     {
-		char *dot_str = malloc(2 * sizeof(char));						
+		char *dot_str = malloc(2 * sizeof(char));
+		if (dot_str == NULL) printSysCallErr("malloc");						
 		strcpy(dot_str, ".");	// [ '.', '\0' ]
 		opts.opt_R == 1 ? printDirR(dot_str, argv[0], opts, blocksize, x_bytes) : free(printDir(dot_str, argv[0], opts, blocksize, x_bytes));	// se n_path_names e' 0 non sono state specificate directory, percio' si esegue su cwd
 		free(dot_str);
@@ -189,10 +190,7 @@ char** printDir(char *dir, char *program_name, struct options opts, int blocksiz
 		{						// permessi, hard link count, dimensione e nome || permessi e nome
 			struct stat st;				
 			if(lstat(dir, &st) < 0)
-			{
-				perror("System call lstat failed because of");
-				exit(100);
-			}
+				printSysCallErr("lstat");
 			else
 				printDirL(st, opts.l_arg_value, dir, dir);
 		}
@@ -204,10 +202,7 @@ char** printDir(char *dir, char *program_name, struct options opts, int blocksiz
 		struct dirent **name_list;
 		int n = scandir(dir, &name_list, 0, alphasort);	// numero di elementi presenti nella cwd
 		if (n < 0) 
-		{
-			perror("System call scandir failed because of");
-			exit(100); 
-		}
+			printSysCallErr("scandir");
 		else 
 		{
 			if (opts.opt_l == 1)
@@ -223,14 +218,14 @@ char** printDir(char *dir, char *program_name, struct options opts, int blocksiz
 						struct stat st;
 						char *tmp_dir = createTmpDir(dir, name_list[i]->d_name);
 						if(lstat(tmp_dir, &st) < 0)
-						{
-							perror("System call lstat failed because of");
-							exit(100);
-						}
+							printSysCallErr("lstat");
 						else
 						{ 
 							if (!S_ISLNK(st.st_mode)) // se non e' un link simbolico
 							{
+								struct statfs stfs;
+								if (statfs(tmp_dir, &stfs) < 0) printSysCallErr("statft");
+								x_bytes = (int) stfs.f_bsize;
 								tmp_total = st.st_size == x_bytes ? st.st_size/x_bytes : (st.st_size/x_bytes)+1;
 								total += tmp_total*x_bytes;
 							}
@@ -251,11 +246,8 @@ char** printDir(char *dir, char *program_name, struct options opts, int blocksiz
 					{					// permessi, hard link count, dimensione e nome || permessi e nome
 						struct stat st;
 						char *tmp_dir = createTmpDir(dir, name_list[i]->d_name);
-						if(lstat(tmp_dir, &st) < 0)
-						{
-							perror("System call lstat failed because of");
-							exit(100);
-						}
+						if(lstat(tmp_dir, &st) < 0) 
+							printSysCallErr("lstat");
 						else
 							printDirL(st, opts.l_arg_value, name_list[i]->d_name, tmp_dir);
 						free(tmp_dir);
@@ -267,7 +259,9 @@ char** printDir(char *dir, char *program_name, struct options opts, int blocksiz
 					if (opts.opt_R && isDirectory(tmp_dir))	// sub_folder su cui applicare -R
 					{
 						sub_folders = realloc(sub_folders, (cnt_sub_folders+2) * sizeof(char *));	// spazio per allocare un NULL
+						if (sub_folders == NULL) printSysCallErr("realloc");
 						sub_folders[cnt_sub_folders] = malloc((strlen(tmp_dir)+1) * sizeof(char));	// lunghezza nome folder
+						if (sub_folders[cnt_sub_folders] == NULL) printSysCallErr("malloc");
 						sub_folders[cnt_sub_folders+1] = NULL;	// necessario per tenere conto successivamente del n di el.
 						strcpy(sub_folders[cnt_sub_folders], tmp_dir);
 						cnt_sub_folders++;
@@ -294,12 +288,10 @@ void printDirL(struct stat st, _Bool l_arg_value, char *name, char *path) // dat
 	{
 		int link_string_size = st.st_size + 1;
 		char *link_string = malloc(link_string_size * sizeof(char));
+		if (link_string == NULL) printSysCallErr("malloc");
 		int nbytes = (int) readlink(path, link_string, link_string_size);
 		if (nbytes < 0) 
-		{
-		   perror("System call readlink failed because of");
-		   exit(100);
-		}
+			printSysCallErr("readlink");
 		printf(" -> %.*s\n", nbytes, link_string);
 		free(link_string);
 	}
@@ -311,6 +303,7 @@ void printDirL(struct stat st, _Bool l_arg_value, char *name, char *path) // dat
 char* createTmpDir(char *s1, char *s2)
 {
 	char *tmp_dir = malloc((strlen(s1)+strlen(s2)+2) * sizeof(char));
+	if (tmp_dir == NULL) printSysCallErr("malloc");
 	strcpy(tmp_dir, s1);
 	strcat(tmp_dir, "/");
 	strcat(tmp_dir, s2);
@@ -327,6 +320,7 @@ int compareStrings(const void *s1, const void *s2)
 char* calcPermString(struct stat st)
 {
 	char *perm_string = malloc(11 * sizeof(char *));
+	if (perm_string == NULL) printSysCallErr("malloc");
 	perm_string[0] = (S_ISLNK(st.st_mode)) ? 'l' : ((S_ISDIR(st.st_mode)) ? 'd' : '-');
 	perm_string[1] = (S_IRUSR & st.st_mode) ? 'r' : '-';
 	perm_string[2] = (S_IWUSR & st.st_mode) ? 'w' : '-';
@@ -351,6 +345,13 @@ _Bool isFile(char *path)	// ritorna 1 se path è un file
 {
 	struct stat st;
 	return stat(path, &st) != 0 ? 0 : S_ISREG(st.st_mode);	// is a regular file
+}
+
+void printSysCallErr(char *system_call_name) // stampa su standard error l'errore della SysCall & exit(100)
+{
+	fprintf(stderr, "System call %s failed because of: ", system_call_name);
+	perror("");
+	exit(100);
 }
 
 void printHelp(char *program_name)	// printa su stderr la sintassi corretta
